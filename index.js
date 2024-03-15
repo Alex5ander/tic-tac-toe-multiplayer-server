@@ -1,5 +1,5 @@
-import { randomUUID } from 'crypto';
-import { Server, Socket } from "socket.io";
+const { randomUUID } = require('crypto');
+const { Server, Socket } = require('socket.io');
 const server = new Server(3000, { cors: '*' });
 
 class Room {
