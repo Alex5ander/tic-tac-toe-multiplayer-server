@@ -11,6 +11,7 @@ class Room {
     }
     this.turn = id;
     this.board = new Array(9).fill(0);
+    this.win = null;
   }
   join(id) {
     this.clientIds[id] = "O";
@@ -57,6 +58,9 @@ const OnMessage = (socket, room) => {
       server.to(room).disconnectSockets();
       return;
     }
+    if (room.win != null) {
+      return;
+    }
     console.log("room: " + room.id);
     console.log("client: " + socket.id + " enviou: " + data);
     if (room.turn == socket.id) {
@@ -72,6 +76,7 @@ const OnMessage = (socket, room) => {
         if (room.check(simbol)) {
           socket.emit('win');
           socket.in(room.id).emit('end-game');
+          room.win = socket.id;
         } else if (room.isFull()) {
           server.in(room.id).emit('end-game');
         }
