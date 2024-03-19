@@ -53,7 +53,7 @@ const OnDisconnect = (socket, room) => {
  * @param {Room} room 
  * */
 const OnMessage = (socket, room) => {
-  socket.on('click', (data, success) => {
+  socket.on('click', (data) => {
     if (isNaN(data) || data < 0 || data > 8) {
       server.to(room).disconnectSockets();
       return;
@@ -68,9 +68,9 @@ const OnMessage = (socket, room) => {
         const simbol = room.clientIds[socket.id];
         room.board[data] = simbol;
         server.to(room.id).emit('update', { simbol, index: data });
-        success();
 
         room.turn = Object.keys(room.clientIds).find(e => e != socket.id);
+        socket.emit('opponent-turn');
         server.to(room.turn).emit('your-turn');
 
         if (room.check(simbol)) {
