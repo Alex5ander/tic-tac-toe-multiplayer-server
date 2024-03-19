@@ -8,7 +8,7 @@ class Room {
     this.simbols = ["X", "O"];
     this.id = randomUUID();
     this.clientIds = {
-      [id]: this.simbols.splice(Math.floor(Math.random() * 2), 1)
+      [id]: this.simbols.splice(Math.floor(Math.random() * 2), 1)[0]
     }
     this.turn = id;
     this.board = new Array(9).fill(0);
@@ -64,7 +64,7 @@ const OnMessage = (socket, room) => {
     console.log("room: " + room.id);
     console.log("client: " + socket.id + " enviou: " + data);
     if (room.turn == socket.id) {
-      if (data < room.board.length && room.board[data] == 0) {
+      if (room.board[data] == 0) {
         const simbol = room.clientIds[socket.id];
         room.board[data] = simbol;
         server.to(room.id).emit('update', { simbol, index: data });
