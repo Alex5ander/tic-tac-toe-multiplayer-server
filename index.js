@@ -5,18 +5,18 @@ const server = new Server(3000, { cors: '*' });
 class Room {
   /** @param {string} id */
   constructor(id) {
+    this.simbols = ["X", "O"];
     this.id = randomUUID();
     this.clientIds = {
-      [id]: "X"
+      [id]: this.simbols.splice(Math.floor(Math.random() * 2), 1)
     }
     this.turn = id;
     this.board = new Array(9).fill(0);
     this.win = null;
   }
   join(id) {
-    this.clientIds[id] = "O";
+    this.clientIds[id] = this.simbols[0];
   }
-
   check(simbol) {
     for (let i = 0; i < 3; i++) {
       const horizontal = this.board[i * 3 + 0] == simbol && this.board[i * 3 + 1] == simbol && this.board[i * 3 + 2] == simbol;
@@ -54,7 +54,7 @@ const OnDisconnect = (socket, room) => {
  * */
 const OnMessage = (socket, room) => {
   socket.on('click', (data, success) => {
-    if (isNaN(data)) {
+    if (isNaN(data) || data < 0 || data > 8) {
       server.to(room).disconnectSockets();
       return;
     }
@@ -75,10 +75,10 @@ const OnMessage = (socket, room) => {
 
         if (room.check(simbol)) {
           socket.emit('win');
-          socket.in(room.id).emit('end-game');
+          socket.in(room.id).emit('lost');
           room.win = socket.id;
         } else if (room.isFull()) {
-          server.in(room.id).emit('end-game');
+          server.in(room.id).emit('draw');
         }
       }
     }
