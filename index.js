@@ -1,21 +1,19 @@
 const { randomUUID } = require('crypto');
 const { Server, Socket } = require('socket.io');
-const server = new Server(3000, { cors: '*' });
+const server = new Server(3000, { cors: 'https://alex5ander.itch.io/tic-tac-toe-multiplayer' });
 
 class Room {
   /** @param {string} id */
-  constructor(id) {
+  constructor() {
     this.simbols = ["X", "O"];
     this.id = randomUUID();
-    this.clientIds = {
-      [id]: this.simbols.splice(Math.floor(Math.random() * 2), 1)[0]
-    }
-    this.turn = id;
-    this.board = new Array(9).fill(0);
+    this.clientIds = {};
+    this.turn = null;
     this.win = null;
+    this.board = new Array(9).fill(0);
   }
   join(id) {
-    this.clientIds[id] = this.simbols[0];
+    this.clientIds[id] = this.simbols.splice(Math.floor(Math.random() * this.simbols.length), 1)[0];
   }
   check(simbol) {
     for (let i = 0; i < 3; i++) {
@@ -42,9 +40,11 @@ let rooms = [];
  * */
 const OnDisconnect = (socket, room) => {
   socket.on('disconnect', () => {
-    socket.in(room.id).disconnectSockets(true);
     rooms = rooms.filter(r => r.id != room.id);
-    console.log('disconnected: ' + socket.id);
+    if (!room.win) {
+      socket.in(room.id).emit("opponent_disconnected");
+      console.log('disconnected: ' + socket.id);
+    }
   });
 }
 
@@ -67,11 +67,8 @@ const OnMessage = (socket, room) => {
       if (room.board[data] == 0) {
         const simbol = room.clientIds[socket.id];
         room.board[data] = simbol;
-        server.to(room.id).emit('update', { simbol, index: data });
-
         room.turn = Object.keys(room.clientIds).find(e => e != socket.id);
-        socket.emit('opponent-turn');
-        server.to(room.turn).emit('your-turn');
+        server.to(room.id).emit('update', { simbol, index: data });
 
         if (room.check(simbol)) {
           socket.emit('win');
@@ -79,6 +76,10 @@ const OnMessage = (socket, room) => {
           room.win = socket.id;
         } else if (room.isFull()) {
           server.in(room.id).emit('draw');
+        }
+        else {
+          socket.emit('opponent_turn');
+          server.to(room.turn).emit('your_turn');
         }
       }
     }
@@ -88,20 +89,23 @@ const OnMessage = (socket, room) => {
 /** @param {Socket} socket */
 const OnConnection = (socket) => {
   console.log("client connected: " + socket.id);
-
   let room = rooms.find(room => Object.keys(room.clientIds).length == 1);
   if (!room) {
-    room = new Room(socket.id);
+    room = new Room();
     rooms.push(room);
-    socket.join(room.id);
-    socket.emit('simbol', room.clientIds[socket.id]);
-    server.to(room.turn).emit('your-turn');
   } else {
-    room.join(socket.id);
-    socket.join(room.id);
-    socket.emit('simbol', room.clientIds[socket.id]);
-    server.to(room.id).emit("start");
     console.log("game started on room: " + room.id);
+  }
+
+  room.join(socket.id);
+  socket.join(room.id);
+  socket.emit('simbol', room.clientIds[socket.id]);
+
+  if (room.simbols.length == 0) {
+    room.turn = Object.keys(room.clientIds)[Math.floor(Math.random() * 2)];
+    console.log(Object.keys(room.clientIds))
+    server.to(room.id).emit("start");
+    server.to(room.turn).emit("your_turn");
   }
 
   OnMessage(socket, room);
@@ -109,4 +113,3 @@ const OnConnection = (socket) => {
 };
 
 server.on('connection', OnConnection);
-
